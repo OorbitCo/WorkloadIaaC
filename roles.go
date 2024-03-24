@@ -41,12 +41,12 @@ func createWorkerRole(ctx *pulumi.Context, roleName string) (*iam.Role, error) {
 					}
 				]
 			}`),
-		// Attach the AmazonEKSWorkerNodePolicy, AmazonEKS_CNI_Policy, and AmazonEC2ContainerRegistryReadOnly policies
 		ManagedPolicyArns: pulumi.StringArray{
 			pulumi.String("arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"),
 			pulumi.String("arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"),
 			pulumi.String("arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"),
 			pulumi.String("arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"),
+			pulumi.String("arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"),
 		},
 	})
 	return workerRole, err
