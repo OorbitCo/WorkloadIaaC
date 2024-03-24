@@ -1,0 +1,5 @@
+config:
+  aws:region: us-east-1
+  worker:windowsInstance: g4dn.2xlarge
+  worker:linuxInstance: g4dn.2xlarge
+  worker:windowsAmi: eks-windows-node-gpu
