@@ -3,3 +3,5 @@ config:
   worker:windowsInstance: g4dn.2xlarge
   worker:linuxInstance: g4dn.2xlarge
   worker:windowsAmi: eks-windows-node-gpu
+  eks:accountId: "123456789012"
+  eks:adminUsername: "oorbit"

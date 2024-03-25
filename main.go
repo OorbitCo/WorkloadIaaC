@@ -55,6 +55,11 @@ func main() {
 				linuxWorkerRole,
 				winWorkerRole,
 			},
+			VpcCniOptions: &eks.VpcCniOptionsArgs{
+				EnableIpv6:      pulumi.BoolPtr(false),
+				NodePortSupport: pulumi.BoolPtr(true),
+				WarmIpTarget:    pulumi.Int(16),
+			},
 			VpcId:                        network.Vpc.ID(),
 			PublicSubnetIds:              network.getPublicSubnetIds(),
 			PrivateSubnetIds:             network.getPrivateSubnetIds(),
