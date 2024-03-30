@@ -217,7 +217,8 @@ func main() {
 					},
 				},
 			},
-		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup}))
+			UserData: getWindowsUserData(workloadCluster),
+		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
 		windowsNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("WindowsNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			NodeGroupName: pulumi.String(getStackNameRegional("WindowsNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
 			ClusterName:   workloadCluster.EksCluster.Name(),
