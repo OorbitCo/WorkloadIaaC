@@ -590,6 +590,6 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 		Tags: pulumi.StringMap{
 			"Description": pulumi.String(getStackName("WorkerSecurityGroup", ctx.Stack())),
 		},
-	})
+	}, pulumi.DependsOn([]pulumi.Resource{vpc}))
 	return SecurityGroup, err
 }
