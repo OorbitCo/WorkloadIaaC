@@ -1,15 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	awsEKS "github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-eks/sdk/v2/go/eks"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 func main() {
+	falsePtr := new(bool)
+	truePtr := new(bool)
+	*falsePtr = false
+	*truePtr = true
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		region, regionOK := ctx.GetConfig("aws:region")
 		windowsInstanceType, windowsInstanceTypeOK := ctx.GetConfig("worker:windowsInstance")
@@ -49,32 +56,25 @@ func main() {
 		if err != nil {
 			return err
 		}
+		clusterInstanceProfile, err := iam.NewInstanceProfile(ctx, getStackNameRegional("ClusterInstanceProfile", ctx.Stack(), region), &iam.InstanceProfileArgs{
+			Role: clusterRole.Name,
+		}, pulumi.DependsOn([]pulumi.Resource{clusterRole}))
+		if err != nil {
+			return err
+		}
 		workloadCluster, err := eks.NewCluster(ctx, getStackName("WorkloadCluster", ctx.Stack()), &eks.ClusterArgs{
-			Name: pulumi.String(getStackName("WorkloadCluster", ctx.Stack())),
+			CreateOidcProvider: pulumi.BoolPtr(true),
 			InstanceRoles: iam.RoleArray{
 				linuxWorkerRole,
 				winWorkerRole,
+				systemRole,
 			},
-			VpcCniOptions: &eks.VpcCniOptionsArgs{
-				EnableIpv6:      pulumi.BoolPtr(false),
-				NodePortSupport: pulumi.BoolPtr(true),
-				WarmIpTarget:    pulumi.Int(16),
-			},
-			VpcId:                        network.Vpc.ID(),
-			PublicSubnetIds:              network.getPublicSubnetIds(),
-			PrivateSubnetIds:             network.getPrivateSubnetIds(),
-			Version:                      pulumi.String(K8S_VERSION),
 			ServiceRole:                  clusterRole,
-			NodeAssociatePublicIpAddress: new(bool),
-			CreateOidcProvider:           pulumi.BoolPtr(true),
+			Name:                         pulumi.String(getStackName("WorkloadCluster", ctx.Stack())),
+			NodeAssociatePublicIpAddress: falsePtr,
+			PrivateSubnetIds:             network.getPrivateSubnetIds(),
 			ProviderCredentialOpts:       eks.KubeconfigOptionsArgs{},
-			UserMappings: eks.UserMappingArray{
-				&eks.UserMappingArgs{
-					Groups:   pulumi.StringArray{pulumi.String("system:masters")},
-					Username: pulumi.String(adminUsername),
-					UserArn:  pulumi.String("arn:aws:iam::" + accountId + ":user/" + adminUsername),
-				},
-			},
+			PublicSubnetIds:              network.getPublicSubnetIds(),
 			RoleMappings: eks.RoleMappingArray{
 				&eks.RoleMappingArgs{
 					Groups:   pulumi.StringArray{pulumi.String("system:bootstrappers"), pulumi.String("system:nodes"), pulumi.String("eks:kube-proxy-windows")},
@@ -82,15 +82,43 @@ func main() {
 					Username: pulumi.String("system:node:{{EC2PrivateDNSName}}"),
 				},
 			},
+			SkipDefaultNodeGroup: truePtr,
 			Tags: pulumi.StringMap{
 				"Name": pulumi.String(getStackName("WorkloadCluster", ctx.Stack())),
 			},
-		}, pulumi.DependsOn([]pulumi.Resource{network.Vpc, clusterRole, network.ClusterSecurityGroup, clusterRole}))
+			UserMappings: eks.UserMappingArray{
+				&eks.UserMappingArgs{
+					Groups:   pulumi.StringArray{pulumi.String("system:masters")},
+					Username: pulumi.String(adminUsername),
+					UserArn:  pulumi.String("arn:aws:iam::" + accountId + ":user/" + adminUsername),
+				},
+			},
+			Version:          pulumi.String(K8S_VERSION),
+			UseDefaultVpcCni: truePtr,
+			VpcId:            network.Vpc.ID(),
+		}, pulumi.DependsOn([]pulumi.Resource{network.Vpc, clusterRole, network.ClusterSecurityGroup, clusterInstanceProfile, systemRole, linuxWorkerRole, winWorkerRole}))
+		if err != nil {
+			return err
+		}
+		kubeconfig := workloadCluster.Kubeconfig.ApplyT(func(kc interface{}) (string, error) {
+			content := kc.(map[string]interface{})
+			bytes, err := json.Marshal(content)
+			if err != nil {
+				return "", errors.New("failed to marshal kubeconfig")
+			}
+			return string(bytes), nil
+		}).(pulumi.StringOutput)
+		k8sProvider, err := kubernetes.NewProvider(ctx, "k8sProvider", &kubernetes.ProviderArgs{
+			Kubeconfig: kubeconfig,
+		}, pulumi.DependsOn([]pulumi.Resource{workloadCluster}))
+		if err != nil {
+			return err
+		}
+		kubeDns, err := corev1.GetService(ctx, "kube-system/kube-dns", pulumi.ID("kube-system/kube-dns"), nil, pulumi.Provider(k8sProvider))
 		if err != nil {
 			return err
 		}
 		systemLaunchTemplate, err := ec2.NewLaunchTemplate(ctx, getStackNameRegional("SystemLaunchTemplate", ctx.Stack(), region, "WorkloadCluster"), &ec2.LaunchTemplateArgs{
-			Name: pulumi.String(getStackNameRegional("SystemLaunchTemplate", ctx.Stack(), region, "WorkloadCluster")),
 			BlockDeviceMappings: ec2.LaunchTemplateBlockDeviceMappingArray{
 				&ec2.LaunchTemplateBlockDeviceMappingArgs{
 					DeviceName: pulumi.String("/dev/xvda"),
@@ -101,6 +129,7 @@ func main() {
 					},
 				},
 			},
+			Name: pulumi.String(getStackNameRegional("SystemLaunchTemplate", ctx.Stack(), region, "WorkloadCluster")),
 			TagSpecifications: ec2.LaunchTemplateTagSpecificationArray{
 				&ec2.LaunchTemplateTagSpecificationArgs{
 					ResourceType: pulumi.String("instance"),
@@ -109,13 +138,13 @@ func main() {
 					},
 				},
 			},
-		})
+		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
 		systemNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("SystemNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			ClusterName: workloadCluster.EksCluster.Name(),
 			NodeRoleArn: systemRole.Arn,
 			ScalingConfig: &awsEKS.NodeGroupScalingConfigArgs{
 				DesiredSize: pulumi.Int(1),
-				MaxSize:     pulumi.Int(1),
+				MaxSize:     pulumi.Int(3),
 				MinSize:     pulumi.Int(1),
 			},
 			LaunchTemplate: &awsEKS.NodeGroupLaunchTemplateArgs{
@@ -126,6 +155,7 @@ func main() {
 			InstanceTypes: pulumi.StringArray{
 				pulumi.String("t3.medium"),
 			},
+
 			Tags: pulumi.StringMap{
 				"Name":     pulumi.String(getStackNameRegional("SystemNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
 				"workload": pulumi.String("system"),
@@ -153,7 +183,7 @@ func main() {
 					},
 				},
 			},
-		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup}))
+		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
 		linuxNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("LinuxNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			NodeGroupName: pulumi.String(getStackNameRegional("LinuxNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
 			ClusterName:   workloadCluster.EksCluster.Name(),
@@ -211,14 +241,14 @@ func main() {
 				&ec2.LaunchTemplateBlockDeviceMappingArgs{
 					DeviceName: pulumi.String("/dev/xvda"),
 					Ebs: &ec2.LaunchTemplateBlockDeviceMappingEbsArgs{
-						VolumeSize:          pulumi.Int(100),
+						VolumeSize:          pulumi.Int(250),
 						VolumeType:          pulumi.String("gp3"),
 						DeleteOnTermination: pulumi.String("true"),
 					},
 				},
 			},
-			UserData: getWindowsUserData(workloadCluster),
-		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
+			UserData: getWindowsUserData(ctx, workloadCluster, kubeDns.Spec.ClusterIP()),
+		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster, kubeDns}))
 		windowsNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("WindowsNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			NodeGroupName: pulumi.String(getStackNameRegional("WindowsNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
 			ClusterName:   workloadCluster.EksCluster.Name(),
@@ -252,10 +282,10 @@ func main() {
 				"workload": pulumi.String("gpu"),
 			},
 		}, pulumi.DependsOn([]pulumi.Resource{workloadCluster, winWorkerRole, windowsLaunchTemplate}))
-		ctx.Export("EKSCluster", workloadCluster.Kubeconfig)
 		ctx.Export("SystemNodeGroup", systemNodeGroup.ID())
 		ctx.Export("LinuxNodeGroup", linuxNodeGroup.ID())
 		ctx.Export("WindowsNodeGroup", windowsNodeGroup.ID())
+		ctx.Export("EKSCluster", workloadCluster.Kubeconfig)
 
 		return nil
 	})
