@@ -478,6 +478,7 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 		return err
 	}
 	ClusterSecurityGroup, err := ec2.NewSecurityGroup(ctx, getStackName("ClusterSecurityGroup", ctx.Stack()), &ec2.SecurityGroupArgs{
+		Name:        pulumi.String(getStackName("ClusterSecurityGroup", ctx.Stack())),
 		Description: pulumi.String("Cluster communication with worker nodes"),
 		VpcId:       VPC.ID(),
 		Ingress:     ec2.SecurityGroupIngressArray{},
@@ -571,6 +572,15 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
 			Protocol:       pulumi.String("tcp"),
 		},
+		//RDP Debug Port TODO: Remove this
+		&ec2.SecurityGroupIngressArgs{
+			CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+			Description:    pulumi.String("RDP DEBUG"),
+			FromPort:       pulumi.Int(3389),
+			ToPort:         pulumi.Int(3389),
+			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
+			Protocol:       pulumi.String("tcp"),
+		},
 	}
 	egressSecurityGroupArgs := ec2.SecurityGroupEgressArray{
 		&ec2.SecurityGroupEgressArgs{
@@ -583,6 +593,7 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 		},
 	}
 	SecurityGroup, err := ec2.NewSecurityGroup(ctx, getStackName("WorkerSecurityGroup", ctx.Stack()), &ec2.SecurityGroupArgs{
+		Name:        pulumi.String(getStackName("WorkerSecurityGroup", ctx.Stack())),
 		Description: pulumi.String("Cluster communication with worker nodes"),
 		Ingress:     ingressSecurityGroupArgs,
 		Egress:      egressSecurityGroupArgs,
