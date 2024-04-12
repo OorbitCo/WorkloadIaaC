@@ -11,9 +11,6 @@ import (
 // net user WIN_GPU_INSTANCE_USERNAME_PLACEHOLDER "WIN_GPU_INSTANCE_PASSWORD_PLACEHOLDER"
 // & "C:\Program Files\Amazon\EKS\Start-EKSBootstrap.ps1" -EKSClusterName "%s" -APIServerEndpoint "%s" -Base64ClusterCA "%s" -DNSClusterIP "%s" -ContainerRuntime "containerd" -KubeletExtraArgs "--node-labels=" 3>&1 4>&1 5>&1 6>&1
 const windowsTemplate = `<powershell>
-$drive_letter = "C"
-$size = (Get-PartitionSupportedSize -DriveLetter $drive_letter) 
-Resize-Partition -DriveLetter $drive_letter -Size $size.SizeMax
 & "C:\Program Files\Amazon\EKS\Start-EKSBootstrap.ps1" -EKSClusterName %s -APIServerEndpoint %s -Base64ClusterCA %s -DNSClusterIP %s -ContainerRuntime containerd -KubeletExtraArgs "--node-labels=" 3>&1 4>&1 5>&1 6>&1
 </powershell>
 <persist>true</persist>

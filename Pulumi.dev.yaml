@@ -1,0 +1,7 @@
+config:
+  aws:region: us-east-1
+  worker:windowsInstance: g4dn.2xlarge
+  worker:linuxInstance: g4dn.2xlarge
+  worker:windowsAmi: windows-nvidia-core-ami
+  eks:accountId: "1234567890"
+  eks:adminUsername: "admin"
