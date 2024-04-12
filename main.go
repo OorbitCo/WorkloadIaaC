@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	awsEKS "github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
@@ -21,7 +20,6 @@ func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		region, regionOK := ctx.GetConfig("aws:region")
 		windowsInstanceType, windowsInstanceTypeOK := ctx.GetConfig("worker:windowsInstance")
-		fmt.Println(windowsInstanceType)
 		linuxInstanceType, linuxInstanceTypeOK := ctx.GetConfig("worker:linuxInstance")
 		windowsAMI, windowsAMIOK := ctx.GetConfig("worker:windowsAmi")
 		adminUsername, adminOK := ctx.GetConfig("eks:adminUsername")
@@ -33,7 +31,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-		fmt.Sprintf("AMI: %s\n", ami)
 		network := new(Network)
 		err = setupEKSNetwork(ctx, network)
 		if err != nil {
