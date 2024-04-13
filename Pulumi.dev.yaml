@@ -2,6 +2,16 @@ config:
   aws:region: us-east-1
   worker:windowsInstance: g4dn.2xlarge
   worker:linuxInstance: g4dn.2xlarge
+
+  worker:linuxDesiredCapacity: 1
+  worker:linuxMinSize: 1
+  worker:linuxMaxSize: 1
+
+  worker:windowsDesiredCapacity: 1
+  worker:windowsMinSize: 1
+  worker:windowsMaxSize: 1
+
+
   worker:windowsAmi: windows-nvidia-core-ami
-  eks:accountId: "1234567890"
-  eks:adminUsername: "admin"
+  eks:accountId: "455260402660"
+  eks:adminUsername: "koorosh"
