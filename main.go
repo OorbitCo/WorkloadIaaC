@@ -9,9 +9,16 @@ import (
 	"github.com/pulumi/pulumi-eks/sdk/v2/go/eks"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
+	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+
+	"os"
 )
 
+func StringPtr(s string) *string {
+	return &s
+}
 func main() {
 	falsePtr := new(bool)
 	truePtr := new(bool)
@@ -155,6 +162,7 @@ func main() {
 			if err != nil {
 				return "", errors.New("failed to marshal kubeconfig")
 			}
+			_ = os.WriteFile("kubeconfig", bytes, 0644)
 			return string(bytes), nil
 		}).(pulumi.StringOutput)
 		k8sProvider, err := kubernetes.NewProvider(ctx, "k8sProvider", &kubernetes.ProviderArgs{
@@ -285,6 +293,77 @@ func main() {
 				"workload": pulumi.String("gpu"),
 			},
 		}, pulumi.DependsOn([]pulumi.Resource{workloadCluster, winWorkerRole, windowsLaunchTemplate, systemNodeGroup}))
+
+		clusterAutoscalerPolicy, err := iam.NewPolicy(ctx, getStackNameRegional("AutoScalerPolicy", ctx.Stack(), region, "WorkloadCluster"), &iam.PolicyArgs{
+			Description: pulumi.String("Allows the cluster autoscaler to access AWS resources"),
+			Name:        pulumi.String(getStackNameRegional("AutoScalerPolicy", ctx.Stack(), region, "WorkloadCluster")),
+			Policy:      pulumi.String(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["autoscaling:DescribeAutoScalingGroups","autoscaling:DescribeAutoScalingInstances","autoscaling:DescribeLaunchConfigurations","autoscaling:DescribeScalingActivities","autoscaling:DescribeTags","ec2:DescribeImages","ec2:DescribeInstanceTypes","ec2:DescribeLaunchTemplateVersions","ec2:GetInstanceTypesFromInstanceRequirements","eks:DescribeNodegroup"],"Resource":["*"]},{"Effect":"Allow","Action":["autoscaling:SetDesiredCapacity","autoscaling:TerminateInstanceInAutoScalingGroup"],"Resource":["*"]}]}`),
+		}, pulumi.DependsOn([]pulumi.Resource{workloadCluster}))
+		if err != nil {
+			return err
+		}
+		// Create Role for Cluster Autoscaler
+
+		workloadCluster.Core.OidcProvider().Arn().ApplyT(func(arn interface{}) (interface{}, error) {
+			role := `{"Version":"2012-10-17","Statement":[{"Sid":"","Effect":"Allow","Principal":{"Federated":"` + arn.(string) + `"},"Action":"sts:AssumeRoleWithWebIdentity"}]}`
+			createdRole, err := iam.NewRole(ctx, getStackNameRegional("AutoScalerRole", ctx.Stack(), region, "WorkloadCluster"), &iam.RoleArgs{
+				AssumeRolePolicy: pulumi.String(role),
+				Description:      pulumi.String("Allows the cluster autoscaler to access AWS resources"),
+				Name:             pulumi.String(getStackNameRegional("AutoScalerRole", ctx.Stack(), region, "WorkloadCluster")),
+			}, pulumi.DependsOn([]pulumi.Resource{workloadCluster, clusterAutoscalerPolicy}))
+			if err != nil {
+				return nil, err
+			}
+			policyAttachment, err := iam.NewPolicyAttachment(ctx, getStackNameRegional("AutoScalerPolicyAttachment", ctx.Stack(), region, "WorkloadCluster"), &iam.PolicyAttachmentArgs{
+				PolicyArn: clusterAutoscalerPolicy.Arn,
+				Roles:     pulumi.Array{createdRole.Name},
+			}, pulumi.DependsOn([]pulumi.Resource{clusterAutoscalerPolicy, createdRole}))
+			if err != nil {
+				return nil, err
+			}
+			serviceAccount, err := corev1.NewServiceAccount(ctx, "cluster-autoscaler", &corev1.ServiceAccountArgs{
+				Metadata: metav1.ObjectMetaArgs{
+					Name:      pulumi.String("cluster-autoscaler"),
+					Namespace: pulumi.String("kube-system"),
+					Labels: pulumi.StringMap{
+						"app.kubernetes.io/name": pulumi.String("cluster-autoscaler"),
+					},
+					Annotations: pulumi.StringMap{
+						"eks.amazonaws.com/role-arn": createdRole.Arn,
+					},
+				},
+			}, pulumi.Provider(k8sProvider))
+			if err != nil {
+				return nil, err
+			}
+			// Create Cluster AutoScaler
+			release, err := helm.NewRelease(ctx, "cluster-autoscaler", &helm.ReleaseArgs{
+				Namespace: pulumi.String("kube-system"),
+				Name:      pulumi.String("cluster-autoscaler"),
+				RepositoryOpts: helm.RepositoryOptsArgs{
+					Repo: pulumi.String("https://kubernetes.github.io/autoscaler"),
+				},
+				Chart:   pulumi.String("cluster-autoscaler"),
+				Version: pulumi.String("9.36.0"),
+				Values: pulumi.Map{
+					"cloudProvider": pulumi.String("aws"),
+					"awsRegion":     pulumi.String(region),
+					"autoDiscovery": pulumi.Map{
+						"clusterName": workloadCluster.EksCluster.Name(),
+					},
+					"rbac": pulumi.Map{
+						"create": pulumi.Bool(true),
+						"serviceAccount": pulumi.Map{
+							"name":   pulumi.String("cluster-autoscaler"),
+							"create": pulumi.Bool(false),
+						},
+					},
+				},
+				WaitForJobs: pulumi.Bool(true),
+			}, pulumi.Provider(k8sProvider), pulumi.DependsOn([]pulumi.Resource{workloadCluster, serviceAccount, policyAttachment}))
+			return release, err
+		})
+
 		ctx.Export("SystemNodeGroup", systemNodeGroup.ID())
 		ctx.Export("LinuxNodeGroup", linuxNodeGroup.ID())
 		ctx.Export("WindowsNodeGroup", windowsNodeGroup.ID())
