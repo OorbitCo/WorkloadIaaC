@@ -12,6 +12,7 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"strconv"
 
 	"os"
 )
@@ -31,9 +32,26 @@ func main() {
 		windowsAMI, windowsAMIOK := ctx.GetConfig("worker:windowsAmi")
 		adminUsername, adminOK := ctx.GetConfig("eks:adminUsername")
 		accountId, accOK := ctx.GetConfig("eks:accountId")
-		if !regionOK || !windowsInstanceTypeOK || !linuxInstanceTypeOK || !windowsAMIOK || !adminOK || !accOK {
+		linuxDesiredCapacity, linuxDesiredCapacityOK := ctx.GetConfig("worker:linuxDesiredCapacity")
+		linuxMinSize, linuxMinSizeOK := ctx.GetConfig("worker:linuxMinSize")
+		linuxMaxSize, linuxMaxSizeOK := ctx.GetConfig("worker:linuxMaxSize")
+
+		windowsDesiredCapacity, windowsDesiredCapacityOK := ctx.GetConfig("worker:windowsDesiredCapacity")
+		windowsMinSize, windowsMinSizeOK := ctx.GetConfig("worker:windowsMinSize")
+		windowsMaxSize, windowsMaxSizeOK := ctx.GetConfig("worker:windowsMaxSize")
+		if !regionOK || !windowsInstanceTypeOK || !linuxInstanceTypeOK ||
+			!windowsAMIOK || !adminOK || !accOK || !linuxDesiredCapacityOK || linuxMinSizeOK ||
+			!linuxMaxSizeOK || !windowsDesiredCapacityOK || !windowsMinSizeOK || !windowsMaxSizeOK {
 			return errors.New("missing required configuration parameters")
 		}
+		windowsDesiredCapacityInt, _ := strconv.ParseInt(windowsDesiredCapacity, 10, 64)
+		windowsMinSizeInt, _ := strconv.ParseInt(windowsMinSize, 10, 64)
+		windowsMaxSizeInt, _ := strconv.ParseInt(windowsMaxSize, 10, 64)
+
+		linuxDesiredCapacityInt, _ := strconv.ParseInt(linuxDesiredCapacity, 10, 64)
+		linuxMinSizeInt, _ := strconv.ParseInt(linuxMinSize, 10, 64)
+		linuxMaxSizeInt, _ := strconv.ParseInt(linuxMaxSize, 10, 64)
+
 		ami, err := lookupAMI(ctx, windowsAMI)
 		if err != nil {
 			return err
@@ -193,19 +211,15 @@ func main() {
 					},
 				},
 			},
-			//UserData: getLinuxUserData(ctx, workloadCluster, kubeDns.Spec.ClusterIP()),
-			//VpcSecurityGroupIds: pulumi.StringArray{
-			//	workloadWorkerSecurityGroup.ID(),
-			//},
 		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
 		linuxNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("LinuxNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			NodeGroupName: pulumi.String(getStackNameRegional("LinuxNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
 			ClusterName:   workloadCluster.EksCluster.Name(),
 			NodeRoleArn:   linuxWorkerRole.Arn,
 			ScalingConfig: &awsEKS.NodeGroupScalingConfigArgs{
-				DesiredSize: pulumi.Int(1),
-				MaxSize:     pulumi.Int(1),
-				MinSize:     pulumi.Int(1),
+				DesiredSize: pulumi.Int(linuxDesiredCapacityInt),
+				MaxSize:     pulumi.Int(linuxMaxSizeInt),
+				MinSize:     pulumi.Int(linuxMinSizeInt),
 			},
 			SubnetIds: network.getPublicSubnetIds(),
 			InstanceTypes: pulumi.StringArray{
@@ -268,9 +282,9 @@ func main() {
 			ClusterName:   workloadCluster.EksCluster.Name(),
 			NodeRoleArn:   winWorkerRole.Arn,
 			ScalingConfig: &awsEKS.NodeGroupScalingConfigArgs{
-				DesiredSize: pulumi.Int(1),
-				MaxSize:     pulumi.Int(1),
-				MinSize:     pulumi.Int(1),
+				DesiredSize: pulumi.Int(windowsDesiredCapacityInt),
+				MaxSize:     pulumi.Int(windowsMaxSizeInt),
+				MinSize:     pulumi.Int(windowsMinSizeInt),
 			},
 			SubnetIds: network.getPublicSubnetIds(),
 			LaunchTemplate: &awsEKS.NodeGroupLaunchTemplateArgs{
