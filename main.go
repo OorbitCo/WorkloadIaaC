@@ -20,6 +20,45 @@ import (
 func StringPtr(s string) *string {
 	return &s
 }
+func validate(ctx *pulumi.Context, regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK bool, windowsAMIOK bool, adminOK bool, accOK bool, linuxDesiredCapacityOK bool, linuxMinSizeOK bool, linuxMaxSizeOK bool, windowsDesiredCapacityOK bool, windowsMinSizeOK bool, windowsMaxSizeOK bool) error {
+	if !regionOK {
+		return errors.New("region is required")
+	}
+	if !windowsInstanceTypeOK {
+		return errors.New("windowsInstance is required")
+	}
+	if !linuxInstanceTypeOK {
+		return errors.New("linuxInstance is required")
+	}
+	if !windowsAMIOK {
+		return errors.New("windowsAmi is required")
+	}
+	if !adminOK {
+		return errors.New("adminUsername is required")
+	}
+	if !accOK {
+		return errors.New("accountId is required")
+	}
+	if !linuxDesiredCapacityOK {
+		return errors.New("linuxDesiredCapacity is required")
+	}
+	if !linuxMinSizeOK {
+		return errors.New("linuxMinSize is required")
+	}
+	if !linuxMaxSizeOK {
+		return errors.New("linuxMaxSize is required")
+	}
+	if !windowsDesiredCapacityOK {
+		return errors.New("windowsDesiredCapacity is required")
+	}
+	if !windowsMinSizeOK {
+		return errors.New("windowsMinSize is required")
+	}
+	if !windowsMaxSizeOK {
+		return errors.New("windowsMaxSize is required")
+	}
+	return nil
+}
 func main() {
 	falsePtr := new(bool)
 	truePtr := new(bool)
@@ -39,10 +78,9 @@ func main() {
 		windowsDesiredCapacity, windowsDesiredCapacityOK := ctx.GetConfig("worker:windowsDesiredCapacity")
 		windowsMinSize, windowsMinSizeOK := ctx.GetConfig("worker:windowsMinSize")
 		windowsMaxSize, windowsMaxSizeOK := ctx.GetConfig("worker:windowsMaxSize")
-		if !regionOK || !windowsInstanceTypeOK || !linuxInstanceTypeOK ||
-			!windowsAMIOK || !adminOK || !accOK || !linuxDesiredCapacityOK || linuxMinSizeOK ||
-			!linuxMaxSizeOK || !windowsDesiredCapacityOK || !windowsMinSizeOK || !windowsMaxSizeOK {
-			return errors.New("missing required configuration parameters")
+		err := validate(ctx, regionOK, windowsInstanceTypeOK, linuxInstanceTypeOK, windowsAMIOK, adminOK, accOK, linuxDesiredCapacityOK, linuxMinSizeOK, linuxMaxSizeOK, windowsDesiredCapacityOK, windowsMinSizeOK, windowsMaxSizeOK)
+		if err != nil {
+			return err
 		}
 		windowsDesiredCapacityInt, _ := strconv.ParseInt(windowsDesiredCapacity, 10, 64)
 		windowsMinSizeInt, _ := strconv.ParseInt(windowsMinSize, 10, 64)
@@ -221,6 +259,7 @@ func main() {
 				MaxSize:     pulumi.Int(linuxMaxSizeInt),
 				MinSize:     pulumi.Int(linuxMinSizeInt),
 			},
+			AmiType:   pulumi.String("AL2_x86_64_GPU"),
 			SubnetIds: network.getPublicSubnetIds(),
 			InstanceTypes: pulumi.StringArray{
 				pulumi.String(linuxInstanceType),
@@ -382,7 +421,7 @@ func main() {
 		ctx.Export("LinuxNodeGroup", linuxNodeGroup.ID())
 		ctx.Export("WindowsNodeGroup", windowsNodeGroup.ID())
 		ctx.Export("EKSCluster", workloadCluster.Kubeconfig)
-		ctx.Export("WindowsUserData", getWindowsUserData(ctx, workloadCluster, kubeDns.Spec.ClusterIP()))
+		//ctx.Export("WindowsUserData", getWindowsUserData(ctx, workloadCluster, kubeDns.Spec.ClusterIP()))
 		return nil
 	})
 }
