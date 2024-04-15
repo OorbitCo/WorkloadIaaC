@@ -12,6 +12,6 @@ config:
   worker:windowsMaxSize: 1
 
 
-  worker:windowsAmi: windows-nvidia-core-ami
+  worker:windowsAmi: windows-nvidia-ami
   eks:accountId: "455260402660"
   eks:adminUsername: "koorosh"
