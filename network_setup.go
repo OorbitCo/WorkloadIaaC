@@ -554,24 +554,24 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
 			Protocol:       pulumi.String("udp"),
 		},
-		// Allow Web Server Port 80 TCP
-		&ec2.SecurityGroupIngressArgs{
-			CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
-			Description:    pulumi.String("Allow Web Server Port"),
-			FromPort:       pulumi.Int(80),
-			ToPort:         pulumi.Int(80),
-			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
-			Protocol:       pulumi.String("tcp"),
-		},
-		// Allow Web Server Port 443 TCP
-		&ec2.SecurityGroupIngressArgs{
-			CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
-			Description:    pulumi.String("Allow Web Server Port"),
-			FromPort:       pulumi.Int(443),
-			ToPort:         pulumi.Int(443),
-			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
-			Protocol:       pulumi.String("tcp"),
-		},
+		//// Allow Web Server Port 80 TCP
+		//&ec2.SecurityGroupIngressArgs{
+		//	CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+		//	Description:    pulumi.String("Allow Web Server Port"),
+		//	FromPort:       pulumi.Int(80),
+		//	ToPort:         pulumi.Int(80),
+		//	Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
+		//	Protocol:       pulumi.String("tcp"),
+		//},
+		//// Allow Web Server Port 443 TCP
+		//&ec2.SecurityGroupIngressArgs{
+		//	CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+		//	Description:    pulumi.String("Allow Web Server Port"),
+		//	FromPort:       pulumi.Int(443),
+		//	ToPort:         pulumi.Int(443),
+		//	Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
+		//	Protocol:       pulumi.String("tcp"),
+		//},
 	}
 	egressSecurityGroupArgs := ec2.SecurityGroupEgressArray{
 		&ec2.SecurityGroupEgressArgs{
@@ -594,4 +594,18 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{vpc}))
 	return SecurityGroup, err
+}
+
+func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGroup, fromSecurityGroup *ec2.SecurityGroup, sgName, sourceName string) error {
+
+	_, err := ec2.NewSecurityGroupRule(ctx, getStackName("AllowFromSecurityGroup", ctx.Stack(), sgName, sourceName), &ec2.SecurityGroupRuleArgs{
+		Description:           pulumi.String("Allow communication from the worker nodes"),
+		FromPort:              pulumi.Int(0),
+		Protocol:              pulumi.String("-1"),
+		SecurityGroupId:       securityGroup.ID(),
+		SourceSecurityGroupId: fromSecurityGroup.ID(),
+		ToPort:                pulumi.Int(0),
+		Type:                  pulumi.String("ingress"),
+	}, pulumi.DependsOn([]pulumi.Resource{securityGroup, fromSecurityGroup}))
+	return err
 }

@@ -20,7 +20,7 @@ import (
 func StringPtr(s string) *string {
 	return &s
 }
-func validate(ctx *pulumi.Context, regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK bool, windowsAMIOK bool, adminOK bool, accOK bool, linuxDesiredCapacityOK bool, linuxMinSizeOK bool, linuxMaxSizeOK bool, windowsDesiredCapacityOK bool, windowsMinSizeOK bool, windowsMaxSizeOK bool) error {
+func validate(regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK bool, windowsAMIOK bool, adminOK bool, accOK bool, linuxDesiredCapacityOK bool, linuxMinSizeOK bool, linuxMaxSizeOK bool, windowsDesiredCapacityOK bool, windowsMinSizeOK bool, windowsMaxSizeOK bool) error {
 	if !regionOK {
 		return errors.New("region is required")
 	}
@@ -78,7 +78,7 @@ func main() {
 		windowsDesiredCapacity, windowsDesiredCapacityOK := ctx.GetConfig("worker:windowsDesiredCapacity")
 		windowsMinSize, windowsMinSizeOK := ctx.GetConfig("worker:windowsMinSize")
 		windowsMaxSize, windowsMaxSizeOK := ctx.GetConfig("worker:windowsMaxSize")
-		err := validate(ctx, regionOK, windowsInstanceTypeOK, linuxInstanceTypeOK, windowsAMIOK, adminOK, accOK, linuxDesiredCapacityOK, linuxMinSizeOK, linuxMaxSizeOK, windowsDesiredCapacityOK, windowsMinSizeOK, windowsMaxSizeOK)
+		err := validate(regionOK, windowsInstanceTypeOK, linuxInstanceTypeOK, windowsAMIOK, adminOK, accOK, linuxDesiredCapacityOK, linuxMinSizeOK, linuxMaxSizeOK, windowsDesiredCapacityOK, windowsMinSizeOK, windowsMaxSizeOK)
 		if err != nil {
 			return err
 		}
@@ -116,6 +116,18 @@ func main() {
 			return err
 		}
 		workloadWorkerSecurityGroup, err := createWorkerSecurityGroup(ctx, network.Vpc)
+		if err != nil {
+			return err
+		}
+		err = allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, network.ClusterSecurityGroup, "worker", "cluster")
+		if err != nil {
+			return err
+		}
+		err = allowFromSecurityGroup(ctx, network.ClusterSecurityGroup, workloadWorkerSecurityGroup, "cluster", "worker")
+		if err != nil {
+			return err
+		}
+		err = allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, workloadWorkerSecurityGroup, "worker", "worker")
 		if err != nil {
 			return err
 		}
@@ -163,6 +175,14 @@ func main() {
 		if err != nil {
 			return err
 		}
+		workloadCluster.Core.ClusterSecurityGroup().ApplyT(func(sg interface{}) (interface{}, error) {
+			err := allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, sg.(*ec2.SecurityGroup), "worker", "cluster-main")
+			if err != nil {
+				return nil, err
+			}
+			err = allowFromSecurityGroup(ctx, sg.(*ec2.SecurityGroup), workloadWorkerSecurityGroup, "cluster-main", "worker")
+			return nil, err
+		})
 		systemLaunchTemplate, err := ec2.NewLaunchTemplate(ctx, getStackNameRegional("SystemLaunchTemplate", ctx.Stack(), region, "WorkloadCluster"), &ec2.LaunchTemplateArgs{
 			BlockDeviceMappings: ec2.LaunchTemplateBlockDeviceMappingArray{
 				&ec2.LaunchTemplateBlockDeviceMappingArgs{
@@ -183,9 +203,9 @@ func main() {
 					},
 				},
 			},
-			//VpcSecurityGroupIds: pulumi.StringArray{
-			//	workloadWorkerSecurityGroup.ID(),
-			//},
+			VpcSecurityGroupIds: pulumi.StringArray{
+				workloadWorkerSecurityGroup.ID(),
+			},
 		}, pulumi.DependsOn([]pulumi.Resource{workloadWorkerSecurityGroup, network.ClusterSecurityGroup, workloadCluster}))
 		systemNodeGroup, err := awsEKS.NewNodeGroup(ctx, getStackNameRegional("SystemNodeGroup", ctx.Stack(), region, "WorkloadCluster"), &awsEKS.NodeGroupArgs{
 			NodeGroupName: pulumi.String(getStackNameRegional("SystemNodeGroup", ctx.Stack(), region, "WorkloadCluster")),
@@ -240,6 +260,9 @@ func main() {
 					},
 				},
 			},
+			VpcSecurityGroupIds: pulumi.StringArray{
+				workloadWorkerSecurityGroup.ID(),
+			},
 			Name: pulumi.String(getStackNameRegional("LinuxLaunchTemplate", ctx.Stack(), region, "WorkloadCluster")),
 			TagSpecifications: ec2.LaunchTemplateTagSpecificationArray{
 				&ec2.LaunchTemplateTagSpecificationArgs{
@@ -293,7 +316,6 @@ func main() {
 			InstanceType: pulumi.String(windowsInstanceType),
 			VpcSecurityGroupIds: pulumi.StringArray{
 				workloadWorkerSecurityGroup.ID(),
-				network.ClusterSecurityGroup.ID(),
 			},
 			BlockDeviceMappings: ec2.LaunchTemplateBlockDeviceMappingArray{
 				&ec2.LaunchTemplateBlockDeviceMappingArgs{
@@ -420,7 +442,7 @@ func main() {
 		ctx.Export("SystemNodeGroup", systemNodeGroup.ID())
 		ctx.Export("LinuxNodeGroup", linuxNodeGroup.ID())
 		ctx.Export("WindowsNodeGroup", windowsNodeGroup.ID())
-		ctx.Export("EKSCluster", workloadCluster.Kubeconfig)
+		//ctx.Export("EKSCluster", workloadCluster.Kubeconfig)
 		//ctx.Export("WindowsUserData", getWindowsUserData(ctx, workloadCluster, kubeDns.Spec.ClusterIP()))
 		return nil
 	})
