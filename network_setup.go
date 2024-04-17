@@ -287,33 +287,33 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 		      VpcId: !Ref VPC
 	*/
 	// Create a VPC
-	VPC, err := ec2.NewVpc(ctx, getStackName("VPC", ctx.Stack()), &ec2.VpcArgs{
+	VPC, err := ec2.NewVpc(ctx, getStackNameRegional("VPC"), &ec2.VpcArgs{
 		CidrBlock:          pulumi.String(params.VpcBlock),
 		EnableDnsSupport:   pulumi.Bool(true),
 		EnableDnsHostnames: pulumi.Bool(true),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(getStackName("VPC", ctx.Stack())),
+			"Name": pulumi.String(getStackNameRegional("VPC")),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	InternetGateway, err := ec2.NewInternetGateway(ctx, getStackName("IGW", ctx.Stack()), &ec2.InternetGatewayArgs{
+	InternetGateway, err := ec2.NewInternetGateway(ctx, getStackNameRegional("IGW"), &ec2.InternetGatewayArgs{
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(getStackName("IGW", ctx.Stack())),
+			"Name": pulumi.String(getStackNameRegional("IGW")),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	VPCGatewayAttachment, err := ec2.NewInternetGatewayAttachment(ctx, getStackName("VPCGatewayAttachment", ctx.Stack()), &ec2.InternetGatewayAttachmentArgs{
+	VPCGatewayAttachment, err := ec2.NewInternetGatewayAttachment(ctx, getStackNameRegional("VPCGatewayAttachment"), &ec2.InternetGatewayAttachmentArgs{
 		InternetGatewayId: InternetGateway.ID(),
 		VpcId:             VPC.ID(),
 	})
 	if err != nil {
 		return err
 	}
-	PublicRouteTable, err := ec2.NewRouteTable(ctx, getStackName("PublicRouteTable", ctx.Stack()), &ec2.RouteTableArgs{
+	PublicRouteTable, err := ec2.NewRouteTable(ctx, getStackNameRegional("PublicRouteTable"), &ec2.RouteTableArgs{
 		VpcId: VPC.ID(),
 		Tags: pulumi.StringMap{
 			"Name":    pulumi.String("Public Subnets"),
@@ -323,7 +323,7 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	PrivateRouteTable01, err := ec2.NewRouteTable(ctx, getStackName("PrivateRouteTable01", ctx.Stack()), &ec2.RouteTableArgs{
+	PrivateRouteTable01, err := ec2.NewRouteTable(ctx, getStackNameRegional("PrivateRouteTable01"), &ec2.RouteTableArgs{
 		VpcId: VPC.ID(),
 		Tags: pulumi.StringMap{
 			"Name":    pulumi.String("Private Subnet AZ1"),
@@ -333,7 +333,7 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	PrivateRouteTable02, err := ec2.NewRouteTable(ctx, getStackName("PrivateRouteTable02", ctx.Stack()), &ec2.RouteTableArgs{
+	PrivateRouteTable02, err := ec2.NewRouteTable(ctx, getStackNameRegional("PrivateRouteTable02"), &ec2.RouteTableArgs{
 		VpcId: VPC.ID(),
 		Tags: pulumi.StringMap{
 			"Name":    pulumi.String("Private Subnet AZ2"),
@@ -343,57 +343,57 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	PublicSubnet01, err := ec2.NewSubnet(ctx, getStackName("PublicSubnet01", ctx.Stack()), &ec2.SubnetArgs{
+	PublicSubnet01, err := ec2.NewSubnet(ctx, getStackNameRegional("PublicSubnet01"), &ec2.SubnetArgs{
 		MapPublicIpOnLaunch: pulumi.Bool(true),
 		AvailabilityZone:    pulumi.String(region + "a"),
 		CidrBlock:           pulumi.String(params.PublicSubnet01Block),
 		VpcId:               VPC.ID(),
 		Tags: pulumi.StringMap{
-			"Name":                   pulumi.String(getStackName("PublicSubnet01", ctx.Stack())),
+			"Name":                   pulumi.String(getStackNameRegional("PublicSubnet01")),
 			"kubernetes.io/role/elb": pulumi.String("1"),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	PublicSubnet02, err := ec2.NewSubnet(ctx, getStackName("PublicSubnet02", ctx.Stack()), &ec2.SubnetArgs{
+	PublicSubnet02, err := ec2.NewSubnet(ctx, getStackNameRegional("PublicSubnet02"), &ec2.SubnetArgs{
 		MapPublicIpOnLaunch: pulumi.Bool(true),
 		AvailabilityZone:    pulumi.String(region + "b"),
 		CidrBlock:           pulumi.String(params.PublicSubnet02Block),
 		VpcId:               VPC.ID(),
 		Tags: pulumi.StringMap{
-			"Name":                   pulumi.String(getStackName("PublicSubnet02", ctx.Stack())),
+			"Name":                   pulumi.String(getStackNameRegional("PublicSubnet02")),
 			"kubernetes.io/role/elb": pulumi.String("1"),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	PrivateSubnet01, err := ec2.NewSubnet(ctx, getStackName("PrivateSubnet01", ctx.Stack()), &ec2.SubnetArgs{
+	PrivateSubnet01, err := ec2.NewSubnet(ctx, getStackNameRegional("PrivateSubnet01"), &ec2.SubnetArgs{
 		AvailabilityZone: pulumi.String(region + "a"),
 		CidrBlock:        pulumi.String(params.PrivateSubnet01Block),
 		VpcId:            VPC.ID(),
 		Tags: pulumi.StringMap{
-			"Name":                            pulumi.String(getStackName("PrivateSubnet01", ctx.Stack())),
+			"Name":                            pulumi.String(getStackNameRegional("PrivateSubnet01")),
 			"kubernetes.io/role/internal-elb": pulumi.String("1"),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	PrivateSubnet02, err := ec2.NewSubnet(ctx, getStackName("PrivateSubnet02", ctx.Stack()), &ec2.SubnetArgs{
+	PrivateSubnet02, err := ec2.NewSubnet(ctx, getStackNameRegional("PrivateSubnet02"), &ec2.SubnetArgs{
 		AvailabilityZone: pulumi.String(region + "b"),
 		CidrBlock:        pulumi.String(params.PrivateSubnet02Block),
 		VpcId:            VPC.ID(),
 		Tags: pulumi.StringMap{
-			"Name":                            pulumi.String(getStackName("PrivateSubnet02", ctx.Stack())),
+			"Name":                            pulumi.String(getStackNameRegional("PrivateSubnet02")),
 			"kubernetes.io/role/internal-elb": pulumi.String("1"),
 		},
 	})
 	if err != nil {
 		return err
 	}
-	PublicRoute, err := ec2.NewRoute(ctx, getStackName("PublicRoute", ctx.Stack()), &ec2.RouteArgs{
+	PublicRoute, err := ec2.NewRoute(ctx, getStackNameRegional("PublicRoute"), &ec2.RouteArgs{
 		RouteTableId:         PublicRouteTable.ID(),
 		DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
 		GatewayId:            InternetGateway.ID(),
@@ -401,39 +401,39 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	NatGatewayEIP1, err := ec2.NewEip(ctx, getStackName("NatGatewayEIP1", ctx.Stack()), &ec2.EipArgs{
+	NatGatewayEIP1, err := ec2.NewEip(ctx, getStackNameRegional("NatGatewayEIP1"), &ec2.EipArgs{
 		Domain: pulumi.String("vpc"),
 	}, pulumi.DependsOn([]pulumi.Resource{VPCGatewayAttachment}))
 	if err != nil {
 		return err
 	}
-	NatGatewayEIP2, err := ec2.NewEip(ctx, getStackName("NatGatewayEIP2", ctx.Stack()), &ec2.EipArgs{
+	NatGatewayEIP2, err := ec2.NewEip(ctx, getStackNameRegional("NatGatewayEIP2"), &ec2.EipArgs{
 		Domain: pulumi.String("vpc"),
 	}, pulumi.DependsOn([]pulumi.Resource{VPCGatewayAttachment}))
 	if err != nil {
 		return err
 	}
-	NatGateway01, err := ec2.NewNatGateway(ctx, getStackName("NatGateway01", ctx.Stack()), &ec2.NatGatewayArgs{
+	NatGateway01, err := ec2.NewNatGateway(ctx, getStackNameRegional("NatGateway01"), &ec2.NatGatewayArgs{
 		AllocationId: NatGatewayEIP1.ID(),
 		SubnetId:     PublicSubnet01.ID(),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(getStackName("NatGateway01", ctx.Stack())),
+			"Name": pulumi.String(getStackNameRegional("NatGateway01")),
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{VPCGatewayAttachment, PublicSubnet01, NatGatewayEIP1}))
 	if err != nil {
 		return err
 	}
-	NatGateway02, err := ec2.NewNatGateway(ctx, getStackName("NatGateway02", ctx.Stack()), &ec2.NatGatewayArgs{
+	NatGateway02, err := ec2.NewNatGateway(ctx, getStackNameRegional("NatGateway02"), &ec2.NatGatewayArgs{
 		AllocationId: NatGatewayEIP2.ID(),
 		SubnetId:     PublicSubnet02.ID(),
 		Tags: pulumi.StringMap{
-			"Name": pulumi.String(getStackName("NatGateway02", ctx.Stack())),
+			"Name": pulumi.String(getStackNameRegional("NatGateway02")),
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{VPCGatewayAttachment, PublicSubnet02, NatGatewayEIP2}))
 	if err != nil {
 		return err
 	}
-	PrivateRoute01, err := ec2.NewRoute(ctx, getStackName("PrivateRoute01", ctx.Stack()), &ec2.RouteArgs{
+	PrivateRoute01, err := ec2.NewRoute(ctx, getStackNameRegional("PrivateRoute01"), &ec2.RouteArgs{
 		RouteTableId:         PrivateRouteTable01.ID(),
 		DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
 		NatGatewayId:         NatGateway01.ID(),
@@ -441,7 +441,7 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	PrivateRoute02, err := ec2.NewRoute(ctx, getStackName("PrivateRoute02", ctx.Stack()), &ec2.RouteArgs{
+	PrivateRoute02, err := ec2.NewRoute(ctx, getStackNameRegional("PrivateRoute02"), &ec2.RouteArgs{
 		RouteTableId:         PrivateRouteTable02.ID(),
 		DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
 		NatGatewayId:         NatGateway02.ID(),
@@ -449,51 +449,31 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	if err != nil {
 		return err
 	}
-	PublicRouteTableAssociation01, err := ec2.NewRouteTableAssociation(ctx, getStackName("PublicRouteTableAssociation01", ctx.Stack()), &ec2.RouteTableAssociationArgs{
+	PublicRouteTableAssociation01, err := ec2.NewRouteTableAssociation(ctx, getStackNameRegional("PublicRouteTableAssociation01"), &ec2.RouteTableAssociationArgs{
 		SubnetId:     PublicSubnet01.ID(),
 		RouteTableId: PublicRouteTable.ID(),
 	})
 	if err != nil {
 		return err
 	}
-	PublicRouteTableAssociation02, err := ec2.NewRouteTableAssociation(ctx, getStackName("PublicRouteTableAssociation02", ctx.Stack()), &ec2.RouteTableAssociationArgs{
+	PublicRouteTableAssociation02, err := ec2.NewRouteTableAssociation(ctx, getStackNameRegional("PublicRouteTableAssociation02"), &ec2.RouteTableAssociationArgs{
 		SubnetId:     PublicSubnet02.ID(),
 		RouteTableId: PublicRouteTable.ID(),
 	})
 	if err != nil {
 		return err
 	}
-	PrivateRouteTableAssociation01, err := ec2.NewRouteTableAssociation(ctx, getStackName("PrivateRouteTableAssociation01", ctx.Stack()), &ec2.RouteTableAssociationArgs{
+	PrivateRouteTableAssociation01, err := ec2.NewRouteTableAssociation(ctx, getStackNameRegional("PrivateRouteTableAssociation01"), &ec2.RouteTableAssociationArgs{
 		SubnetId:     PrivateSubnet01.ID(),
 		RouteTableId: PrivateRouteTable01.ID(),
 	})
 	if err != nil {
 		return err
 	}
-	PrivateRouteTableAssociation02, err := ec2.NewRouteTableAssociation(ctx, getStackName("PrivateRouteTableAssociation02", ctx.Stack()), &ec2.RouteTableAssociationArgs{
+	PrivateRouteTableAssociation02, err := ec2.NewRouteTableAssociation(ctx, getStackNameRegional("PrivateRouteTableAssociation02"), &ec2.RouteTableAssociationArgs{
 		SubnetId:     PrivateSubnet02.ID(),
 		RouteTableId: PrivateRouteTable02.ID(),
 	})
-	if err != nil {
-		return err
-	}
-	ClusterSecurityGroup, err := ec2.NewSecurityGroup(ctx, getStackName("ClusterSecurityGroup", ctx.Stack()), &ec2.SecurityGroupArgs{
-		Name:        pulumi.String(getStackName("ClusterSecurityGroup", ctx.Stack())),
-		Description: pulumi.String("Cluster communication with worker nodes"),
-		VpcId:       VPC.ID(),
-		Ingress:     ec2.SecurityGroupIngressArray{},
-		Egress: ec2.SecurityGroupEgressArray{
-			// Allow all outbound traffic
-			&ec2.SecurityGroupEgressArgs{
-				CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
-				Description:    pulumi.String("Allow all outbound traffic"),
-				FromPort:       pulumi.Int(0),
-				ToPort:         pulumi.Int(0),
-				Protocol:       pulumi.String("-1"),
-				Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
-			},
-		},
-	}, pulumi.DependsOn([]pulumi.Resource{VPC}))
 	if err != nil {
 		return err
 	}
@@ -518,11 +498,9 @@ func setupEKSNetwork(ctx *pulumi.Context, network *Network) error {
 	ctx.Export("PublicRouteTableAssociation02", PublicRouteTableAssociation02.ID())
 	ctx.Export("PrivateRouteTableAssociation01", PrivateRouteTableAssociation01.ID())
 	ctx.Export("PrivateRouteTableAssociation02", PrivateRouteTableAssociation02.ID())
-	ctx.Export("ClusterSecurityGroup", ClusterSecurityGroup.ID())
 	network.PublicSubnets = []*ec2.Subnet{PublicSubnet01, PublicSubnet02}
 	network.PrivateSubnets = []*ec2.Subnet{PrivateSubnet01, PrivateSubnet02}
 	network.Vpc = VPC
-	network.ClusterSecurityGroup = ClusterSecurityGroup
 	return nil
 }
 func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.SecurityGroup, error) {
@@ -563,15 +541,14 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 		//	Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
 		//	Protocol:       pulumi.String("tcp"),
 		//},
-		//// Allow Web Server Port 443 TCP
-		//&ec2.SecurityGroupIngressArgs{
-		//	CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
-		//	Description:    pulumi.String("Allow Web Server Port"),
-		//	FromPort:       pulumi.Int(443),
-		//	ToPort:         pulumi.Int(443),
-		//	Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
-		//	Protocol:       pulumi.String("tcp"),
-		//},
+		&ec2.SecurityGroupIngressArgs{
+			CidrBlocks:     pulumi.StringArray{pulumi.String("0.0.0.0/0")},
+			Description:    pulumi.String("Allow RDP Port"),
+			FromPort:       pulumi.Int(3389),
+			ToPort:         pulumi.Int(3389),
+			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
+			Protocol:       pulumi.String("tcp"),
+		},
 	}
 	egressSecurityGroupArgs := ec2.SecurityGroupEgressArray{
 		&ec2.SecurityGroupEgressArgs{
@@ -583,14 +560,14 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 			Ipv6CidrBlocks: pulumi.StringArray{pulumi.String("::/0")},
 		},
 	}
-	SecurityGroup, err := ec2.NewSecurityGroup(ctx, getStackName("WorkerSecurityGroup", ctx.Stack()), &ec2.SecurityGroupArgs{
-		Name:        pulumi.String(getStackName("WorkerSecurityGroup", ctx.Stack())),
+	SecurityGroup, err := ec2.NewSecurityGroup(ctx, getStackNameRegional("WorkerSecurityGroup"), &ec2.SecurityGroupArgs{
+		Name:        pulumi.String(getStackNameRegional("WorkerSecurityGroup")),
 		Description: pulumi.String("Cluster communication with worker nodes"),
 		Ingress:     ingressSecurityGroupArgs,
 		Egress:      egressSecurityGroupArgs,
 		VpcId:       vpc.ID(),
 		Tags: pulumi.StringMap{
-			"Description": pulumi.String(getStackName("WorkerSecurityGroup", ctx.Stack())),
+			"Description": pulumi.String(getStackNameRegional("WorkerSecurityGroup")),
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{vpc}))
 	return SecurityGroup, err
@@ -598,7 +575,7 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 
 func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGroup, fromSecurityGroup *ec2.SecurityGroup, sgName, sourceName string) error {
 
-	_, err := ec2.NewSecurityGroupRule(ctx, getStackName("AllowFromSecurityGroup", ctx.Stack(), sgName, sourceName), &ec2.SecurityGroupRuleArgs{
+	rule, err := ec2.NewSecurityGroupRule(ctx, getStackNameRegional("AllowFromSecurityGroup", sgName, sourceName), &ec2.SecurityGroupRuleArgs{
 		Description:           pulumi.String("Allow communication from the worker nodes"),
 		FromPort:              pulumi.Int(0),
 		Protocol:              pulumi.String("-1"),
@@ -607,5 +584,9 @@ func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGrou
 		ToPort:                pulumi.Int(0),
 		Type:                  pulumi.String("ingress"),
 	}, pulumi.DependsOn([]pulumi.Resource{securityGroup, fromSecurityGroup}))
-	return err
+	if err != nil {
+		return err
+	}
+	ctx.Export(getStackNameRegional("AllowFromSecurityGroup", sgName, sourceName), rule.ID())
+	return nil
 }

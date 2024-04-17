@@ -6,10 +6,9 @@ import (
 )
 
 type Network struct {
-	Vpc                  *ec2.Vpc
-	PublicSubnets        []*ec2.Subnet
-	PrivateSubnets       []*ec2.Subnet
-	ClusterSecurityGroup *ec2.SecurityGroup
+	Vpc            *ec2.Vpc
+	PublicSubnets  []*ec2.Subnet
+	PrivateSubnets []*ec2.Subnet
 }
 
 func (n *Network) getSubnetIds() pulumi.StringArray {

@@ -5,13 +5,15 @@ const (
 	K8S_VERSION     = "1.29"
 )
 
-func getStackName(args ...string) string {
-	return getStackNameRegional(args...)
-}
+var stackName string
+var region string
+
 func getStackNameRegional(args ...string) string {
 	name := BASE_STACK_NAME
 	for _, arg := range args {
 		name += "-" + arg
 	}
+	name += "-" + region
+	name += "-" + stackName
 	return name
 }
