@@ -1,18 +1,20 @@
 config:
-  aws:region: us-east-1
-  worker:windowsInstance: g4dn.2xlarge
-  worker:linuxInstance: g4dn.2xlarge
-
+  aws:region: us-east-1  #choose your aws region here, exact region name needed.
+  worker:windowsInstance: g4dn.2xlarge #choose desired EC2 machine for windows instances.
+  worker:linuxInstance: g4dn.2xlarge   #choose desired EC2 machine for Linux instances.
+  
+  #Settings for AWS autoscaler, set desired capacity for Linux nodes.
   worker:linuxDesiredCapacity: 1
   worker:linuxMinSize: 1
   worker:linuxMaxSize: 1
 
+  #Settings for AWS autoscaler, set desired capacity for Windows nodes.
   worker:windowsDesiredCapacity: 1
   worker:windowsMinSize: 1
   worker:windowsMaxSize: 1
 
 
   worker:windowsAmi: windows-nvidia-ami-v6
-  worker:windowsPassword: Sup3rs3cret!!!
-  eks:accountId: "455260402660"
-  eks:adminUsername: "koorosh"
+  worker:windowsPassword: Sup3rs3cret!!! #Windows password
+  eks:accountId: "455260402660" #Your EKS account ID goes here
+  eks:adminUsername: "koorosh"  #Your EKS admin username goes here
