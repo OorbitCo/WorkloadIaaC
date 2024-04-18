@@ -15,6 +15,6 @@ config:
 
 
   worker:windowsAmi: windows-nvidia-ami-v6
-  worker:windowsPassword: Sup3rs3cret!!! #Windows password
-  eks:accountId: "455260402660" #Your EKS account ID goes here
-  eks:adminUsername: "koorosh"  #Your EKS admin username goes here
+  worker:windowsPassword: Sup3rs3cret!!! #Set your desired Windows password here
+  eks:accountId: "455260402660" #Your AWS account ID goes here
+  eks:adminUsername: "koorosh"  #Your AWS admin username goes here
