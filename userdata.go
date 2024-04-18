@@ -14,7 +14,7 @@ import (
 // $size = (Get-PartitionSupportedSize -DriveLetter $drive_letter)
 // Resize-Partition -DriveLetter $drive_letter -Size $size.SizeMax
 const windowsTemplate = `<powershell>
-net user Administrator Sup3rs3cret!!!
+net user Administrator %s
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
 & $EKSBootstrapScriptFile -EKSClusterName %s -APIServerEndpoint %s -Base64ClusterCA %s -DNSClusterIP %s -ContainerRuntime containerd -KubeletExtraArgs "--node-labels=" 3>&1 4>&1 5>&1 6>&1
 </powershell>
@@ -30,10 +30,11 @@ func getWindowsUserData(ctx *pulumi.Context, cluster *eks.Cluster, clusterIP pul
 	endpoint := cluster.EksCluster.Endpoint()
 	certificateAuthorityData := cluster.EksCluster.CertificateAuthority().Data()
 	combined := pulumi.All(clusterName, endpoint, certificateAuthorityData, clusterIP).ApplyT(func(args []interface{}) (string, error) {
+		windowsPassword, _ := ctx.GetConfig("worker:windowsPassword")
 		certificate := *args[2].(*string)
 		certificate = strings.ReplaceAll(certificate, "\n", "")
 		certificate = strings.ReplaceAll(certificate, "\r", "")
-		userData := fmt.Sprintf(windowsTemplate, args[0], args[1], certificate, *args[3].(*string))
+		userData := fmt.Sprintf(windowsTemplate, args[0], args[1], certificate, *args[3].(*string), windowsPassword)
 		ctx.Log.Debug(fmt.Sprintf("Windows user data: %s\n", userData), nil)
 		userData = base64.StdEncoding.EncodeToString([]byte(userData))
 		return userData, nil

@@ -12,6 +12,7 @@ config:
   worker:windowsMaxSize: 1
 
 
-  worker:windowsAmi: windows-nvidia-ami-v5
+  worker:windowsAmi: windows-nvidia-ami-v6
+  worker:windowsPassword: Sup3rs3cret!!!
   eks:accountId: "455260402660"
   eks:adminUsername: "koorosh"

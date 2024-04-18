@@ -19,7 +19,7 @@ import (
 func StringPtr(s string) *string {
 	return &s
 }
-func validate(regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK bool, windowsAMIOK bool, adminOK bool, accOK bool, linuxDesiredCapacityOK bool, linuxMinSizeOK bool, linuxMaxSizeOK bool, windowsDesiredCapacityOK bool, windowsMinSizeOK bool, windowsMaxSizeOK bool) error {
+func validate(regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK bool, windowsAMIOK bool, adminOK bool, accOK bool, linuxDesiredCapacityOK bool, linuxMinSizeOK bool, linuxMaxSizeOK bool, windowsDesiredCapacityOK bool, windowsMinSizeOK bool, windowsMaxSizeOK bool, windowsPasswordOK bool) error {
 	if !regionOK {
 		return errors.New("region is required")
 	}
@@ -56,6 +56,9 @@ func validate(regionOK bool, windowsInstanceTypeOK bool, linuxInstanceTypeOK boo
 	if !windowsMaxSizeOK {
 		return errors.New("windowsMaxSize is required")
 	}
+	if !windowsPasswordOK {
+		return errors.New("windowsPassword is required")
+	}
 	return nil
 }
 func main() {
@@ -77,7 +80,9 @@ func main() {
 		windowsDesiredCapacity, windowsDesiredCapacityOK := ctx.GetConfig("worker:windowsDesiredCapacity")
 		windowsMinSize, windowsMinSizeOK := ctx.GetConfig("worker:windowsMinSize")
 		windowsMaxSize, windowsMaxSizeOK := ctx.GetConfig("worker:windowsMaxSize")
-		err := validate(regionOK, windowsInstanceTypeOK, linuxInstanceTypeOK, windowsAMIOK, adminOK, accOK, linuxDesiredCapacityOK, linuxMinSizeOK, linuxMaxSizeOK, windowsDesiredCapacityOK, windowsMinSizeOK, windowsMaxSizeOK)
+
+		_, windowsPasswordOK := ctx.GetConfig("worker:windowsPassword")
+		err := validate(regionOK, windowsInstanceTypeOK, linuxInstanceTypeOK, windowsAMIOK, adminOK, accOK, linuxDesiredCapacityOK, linuxMinSizeOK, linuxMaxSizeOK, windowsDesiredCapacityOK, windowsMinSizeOK, windowsMaxSizeOK, windowsPasswordOK)
 		if err != nil {
 			return err
 		}
