@@ -573,7 +573,7 @@ func createWorkerSecurityGroup(ctx *pulumi.Context, vpc *ec2.Vpc) (*ec2.Security
 	return SecurityGroup, err
 }
 
-func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGroup, fromSecurityGroup *ec2.SecurityGroup, sgName, sourceName string) error {
+func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGroup, fromSecurityGroup *ec2.SecurityGroup, sgName, sourceName string) (pulumi.Output, error) {
 
 	rule, err := ec2.NewSecurityGroupRule(ctx, getStackNameRegional("AllowFromSecurityGroup", sgName, sourceName), &ec2.SecurityGroupRuleArgs{
 		Description:           pulumi.String("Allow communication from the worker nodes"),
@@ -585,8 +585,8 @@ func allowFromSecurityGroup(ctx *pulumi.Context, securityGroup *ec2.SecurityGrou
 		Type:                  pulumi.String("ingress"),
 	}, pulumi.DependsOn([]pulumi.Resource{securityGroup, fromSecurityGroup}))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx.Export(getStackNameRegional("AllowFromSecurityGroup", sgName, sourceName), rule.ID())
-	return nil
+	return rule.ID(), nil
 }

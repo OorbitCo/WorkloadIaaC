@@ -34,7 +34,7 @@ func getWindowsUserData(ctx *pulumi.Context, cluster *eks.Cluster, clusterIP pul
 		certificate := *args[2].(*string)
 		certificate = strings.ReplaceAll(certificate, "\n", "")
 		certificate = strings.ReplaceAll(certificate, "\r", "")
-		userData := fmt.Sprintf(windowsTemplate, args[0], args[1], certificate, *args[3].(*string), windowsPassword)
+		userData := fmt.Sprintf(windowsTemplate, windowsPassword, args[0], args[1], certificate, *args[3].(*string))
 		ctx.Log.Debug(fmt.Sprintf("Windows user data: %s\n", userData), nil)
 		userData = base64.StdEncoding.EncodeToString([]byte(userData))
 		return userData, nil

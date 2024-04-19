@@ -9,9 +9,9 @@ func lookupAMI(ctx *pulumi.Context, search string) (*ec2.LookupAmiResult, error)
 	ami, err := ec2.LookupAmi(ctx, &ec2.LookupAmiArgs{
 		Filters: []ec2.GetAmiFilter{
 			{
-				Name: "name",
+				Name: "product-code",
 				Values: []string{
-					search,
+					"6c2ls17bo706uvbzvvx39aimt",
 				},
 			},
 		},

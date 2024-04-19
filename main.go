@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	awsEKS "github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
@@ -125,10 +126,11 @@ func main() {
 		if err != nil {
 			return err
 		}
-		err = allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, workloadWorkerSecurityGroup, "worker-sg", "worker-sg")
+		internalId, err := allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, workloadWorkerSecurityGroup, "worker-sg", "worker-sg")
 		if err != nil {
 			return err
 		}
+		ctx.Export("InternalSecurityGroupID", internalId)
 		clusterInstanceProfile, err := iam.NewInstanceProfile(ctx, getStackNameRegional("ClusterInstanceProfile"), &iam.InstanceProfileArgs{
 			Role: clusterRole.Name,
 		}, pulumi.DependsOn([]pulumi.Resource{clusterRole}))
@@ -142,7 +144,6 @@ func main() {
 				winWorkerRole,
 				systemRole,
 			},
-
 			Name:                         pulumi.String(getStackNameRegional("WorkloadCluster")),
 			NodeAssociatePublicIpAddress: falsePtr,
 			PrivateSubnetIds:             network.getPrivateSubnetIds(),
@@ -184,28 +185,35 @@ func main() {
 		if err != nil {
 			return err
 		}
-		pulumi.All(workloadCluster.NodeSecurityGroup, workloadCluster.ClusterSecurityGroup).ApplyT(func(args []interface{}) (interface{}, error) {
+		result := pulumi.All(workloadCluster.NodeSecurityGroup, workloadCluster.ClusterSecurityGroup).ApplyT(func(args []interface{}) (interface{}, error) {
 			nodeSecurityGroup := args[0].(*ec2.SecurityGroup)
 			clusterSecurityGroup := args[1].(*ec2.SecurityGroup)
-			err := allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, nodeSecurityGroup, "worker-sg", "node-sg")
+			fmt.Println("Applying Worker Security Group Rules [FROM NODE]")
+			wn, err := allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, nodeSecurityGroup, "worker-sg", "node-sg")
 			if err != nil {
 				return nil, err
 			}
-			err = allowFromSecurityGroup(ctx, nodeSecurityGroup, workloadWorkerSecurityGroup, "node-sg", "worker-sg")
+			fmt.Println("Applying Node Security Group Rules [FROM WORKER]")
+			nw, err := allowFromSecurityGroup(ctx, nodeSecurityGroup, workloadWorkerSecurityGroup, "node-sg", "worker-sg")
 			if err != nil {
 				return nil, err
 			}
-			err = allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, clusterSecurityGroup, "worker-sg", "cluster-sg")
+			fmt.Println("Applying WORKER Security Group Rules [FROM CLUSTER]")
+			ws, err := allowFromSecurityGroup(ctx, workloadWorkerSecurityGroup, clusterSecurityGroup, "worker-sg", "cluster-sg")
 			if err != nil {
 				return nil, err
 			}
-			err = allowFromSecurityGroup(ctx, clusterSecurityGroup, workloadWorkerSecurityGroup, "cluster-sg", "worker-sg")
+			fmt.Println("Applying cluster Security Group Rules [FROM WORKER]")
+			cw, err := allowFromSecurityGroup(ctx, clusterSecurityGroup, workloadWorkerSecurityGroup, "cluster-sg", "worker-sg")
 			if err != nil {
 				return nil, err
 			}
 
-			return nil, nil
+			return []interface{}{
+				wn, nw, ws, cw,
+			}, nil
 		})
+		ctx.Export("SecurityGroupRules", result)
 		systemLaunchTemplate, err := ec2.NewLaunchTemplate(ctx, getStackNameRegional("SystemLaunchTemplate", "WorkloadCluster"), &ec2.LaunchTemplateArgs{
 			BlockDeviceMappings: ec2.LaunchTemplateBlockDeviceMappingArray{
 				&ec2.LaunchTemplateBlockDeviceMappingArgs{

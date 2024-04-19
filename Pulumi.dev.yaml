@@ -14,7 +14,7 @@ config:
   worker:windowsMaxSize: 1
 
 
-  worker:windowsAmi: windows-nvidia-ami-v6
+  worker:windowsAmi: XBeamWindows
   worker:windowsPassword: Sup3rs3cret!!! #Set your desired Windows password here
   eks:accountId: "455260402660" #Your AWS account ID goes here
   eks:adminUsername: "koorosh"  #Your AWS admin username goes here
